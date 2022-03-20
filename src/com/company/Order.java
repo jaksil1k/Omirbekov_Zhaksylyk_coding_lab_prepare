@@ -1,5 +1,14 @@
 package com.company;
 
+import com.company.connection.CustomerConnection;
+import com.company.connection.ItemConnection;
+import com.company.exception.CustomerException;
+import com.company.exception.ItemException;
+import com.company.util.ConnectionManager;
+
+import java.sql.Connection;
+import java.sql.SQLException;
+
 public class Order {
     private int id;
     private int customerId;
@@ -12,6 +21,7 @@ public class Order {
     }
 
     public Order(int id, int customId, int itemId, int quantity, float totalPrice) {
+        Connection connection = ConnectionManager.open();
         this.id = id;
         this.customerId = customId;
         this.itemId = itemId;
@@ -43,19 +53,33 @@ public class Order {
         return itemId;
     }
 
-    public void setQuantity(int quantity) {
-        Item s = new Item();
-        s.getId(itemId);
-        System.out.println(s.getDesc());
-        this.quantity = quantity;
+    public void setQuantity(int quantity) throws SQLException, ItemException {
+
+        Item item = new ItemConnection().getById("items", this.itemId);
+
+        if (quantity > item.getQuantity()){
+            throw new ItemException("We don't have enough" + item.getDesc());
+        } else {
+            new ItemConnection().updateTableById("items", "quantity", this.itemId, item.getQuantity() - quantity);
+            this.quantity = quantity;
+        }
     }
 
     public int getQuantity() {
         return quantity;
     }
 
-    public void setTotalPrice(float totalPrice) {
-        this.totalPrice = totalPrice;
+    public void setTotalPrice(float totalPrice) throws SQLException, CustomerException {
+
+        Customer customer = new CustomerConnection().getById("customer", this.customerId);
+
+        if (totalPrice > customer.getBalance()){
+            throw new CustomerException("You don't have enough balance");
+        }else {
+            new CustomerConnection().updateTableById("customer", "balance", this.customerId,
+                    customer.getBalance() - totalPrice);
+            this.totalPrice = totalPrice;
+        }
     }
 
     public float getTotalPrice() {

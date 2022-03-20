@@ -1,103 +1,53 @@
 package com.company;
 
+import com.company.connection.CustomerConnection;
+import com.company.connection.ItemConnection;
 import com.company.util.ConnectionManager;
 
-import java.sql.*;
+import java.sql.Driver;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Scanner;
 
 public class Main {
 
+    private static final String customerTableName = "customer";
+    private static final String itemTableName = "items";
+    private static final String orderedBy = "id";
+
     public static void main(String[] args) throws SQLException {
         Scanner scanner = new Scanner(System.in);
+        Class <Driver> driverClass = Driver.class;
+        CustomerConnection customerConnection = new CustomerConnection();
+        ItemConnection itemConnection = new ItemConnection();
 
-        var connection = ConnectionManager.open();
+        try (var connection = ConnectionManager.open();
+             var statement = connection.createStatement()) {
+            customerConnection.createTable();
+            itemConnection.createTable();
 
-        while (true){
             System.out.println("Please select a Customer from the list by his id");
+            customerConnection.printAll(customerTableName, orderedBy);
 
-            Statement statement = connection.createStatement();
-            String SQL_SELECT_CUSTOMERS = "select * from customer order by id";
-            ResultSet resultCustomer =  statement.executeQuery(SQL_SELECT_CUSTOMERS);
-
-            while (resultCustomer.next()){
-                Customer customer = new Customer(resultCustomer.getInt("id"), resultCustomer.getString("firstName"),
-                        resultCustomer.getString("lastName"), resultCustomer.getString("phone"), resultCustomer.getFloat("balance"));
-                System.out.println(customer);
-            }
-
-
-            String SQL_SELECT_CUSTOMER = "select * from customer where id = ?";
-            PreparedStatement preparedStatement = connection.prepareStatement(SQL_SELECT_CUSTOMER);
             int customerId = scanner.nextInt();
-            preparedStatement.setInt(1, customerId);
-            resultCustomer = preparedStatement.executeQuery();
-            resultCustomer.next();
-            Customer customer = new Customer(resultCustomer.getInt("id"), resultCustomer.getString("firstName"),
-                    resultCustomer.getString("lastName"), resultCustomer.getString("phone"), resultCustomer.getFloat("balance"));
+            Customer customer  = customerConnection.getById(customerTableName, customerId);
 
-
-            System.out.println("Please select id od an item that " + customer.getFname() + " wants to order");
-            String SQL_SELECT_ITEMS = "select * from items order by id";
-            ResultSet resultItem = statement.executeQuery(SQL_SELECT_ITEMS);
-            while (resultItem.next()){
-                Item item = new Item(resultItem.getInt("id"), resultItem.getString("name"), resultItem.getFloat("price"),
-                        resultItem.getInt("quantity"));
-                System.out.println(item);
-            }
-
+            System.out.println("Please select id of an item that " + customer.getFname() + " wants to order");
+            itemConnection.printAll(itemTableName, orderedBy);
 
             int itemId = scanner.nextInt();
-            String SQL_SELECT_ITEM = "select * from items where id = ?";
-            preparedStatement = connection.prepareStatement(SQL_SELECT_ITEM);
-            preparedStatement.setInt(1, itemId);
-            resultItem = preparedStatement.executeQuery();
-            resultItem.next();
-            Item item = new Item(resultItem.getInt("id"), resultItem.getString("name"), resultItem.getFloat("price"),
-                    resultItem.getInt("quantity"));
+            Item item = itemConnection.getById(itemTableName, itemId);
 
+            System.out.println("Please Input, how many " + item.getDesc() + " does " + customer.getFname()
+                    + " want to order:");
+            int itemQuantity = scanner.nextInt();
+            Order order = new Order(1, customerId, itemId, itemQuantity, item.getPrice() * itemQuantity);
 
-            System.out.println("Please Input, how many " + item.getDesc() + " does want to order:");
-            int itemQuantity;
-            while (true){
-                itemQuantity = scanner.nextInt();
-                if (itemQuantity > item.getQuantity()){
-                    System.err.println("We don't have enough " + item.getDesc() + ". Please input again");
-                }else if (itemQuantity * item.getPrice() > customer.getBalance()){
-                    System.err.println("You don't have enough balance. Please input again");
-                }else {
-                    break;
-                }
-            }
-
-
-            String updateItem = """
-                    update items set quantity = ? where id = ?
-                    """;
-            String updateCustomer = "update customer set balance = ? where id = ?";
-            preparedStatement = connection.prepareStatement(updateItem);
-            preparedStatement.setInt(1, item.getQuantity() - itemQuantity);
-            preparedStatement.setInt(2, itemId);
-            preparedStatement.executeUpdate();
-            preparedStatement = connection.prepareStatement(updateCustomer);
-            preparedStatement.setFloat(1, customer.getBalance() - (itemQuantity * item.getPrice()));
-            preparedStatement.setInt(2, customer.getId());
-            preparedStatement.executeUpdate();
-
-            resultCustomer =  statement.executeQuery(SQL_SELECT_CUSTOMERS);
-
-            while (resultCustomer.next()){
-                customer = new Customer(resultCustomer.getInt("id"), resultCustomer.getString("firstName"),
-                        resultCustomer.getString("lastName"), resultCustomer.getString("phone"), resultCustomer.getFloat("balance"));
-                System.out.println(customer);
-            }
-
-
-            resultItem = statement.executeQuery(SQL_SELECT_ITEMS);
-            while (resultItem.next()){
-                item = new Item(resultItem.getInt("id"), resultItem.getString("name"), resultItem.getFloat("price"),
-                        resultItem.getInt("quantity"));
-                System.out.println(item);
-            }
+            System.out.println(customer);
+            System.out.println(item);
+            itemConnection.deleteTable(itemTableName);
+            customerConnection.deleteTable(customerTableName);
         }
     }
 }

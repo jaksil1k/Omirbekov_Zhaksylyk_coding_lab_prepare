@@ -7,8 +7,7 @@ public class Customer {
     private String phone;
     private float balance;
 
-    public Customer(int i, String zhaksylyk, String omirbekov, double v) {
-
+    public Customer() {
     }
 
     public Customer(int id, String fname, String lname, String phone, float balance) {
